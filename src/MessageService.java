@@ -1,3 +1,6 @@
+/**
+ * This class acts as a link between two adjacent process
+ */
 public class MessageService {
     private int size;
     public Message[] inMessageList;
@@ -12,14 +15,24 @@ public class MessageService {
 
     }
 
-    public Message readIncomingMessage(int idx){
-        Message message =  inMessageList[idx];
-        inMessageList[idx] = null;
+    /**
+     * Reads the inbound message of a particular process
+     * @param index
+     * @return
+     */
+    public Message readIncomingMessage(int index){
+        Message message =  inMessageList[index];
+        inMessageList[index] = null;
         return message;
     }
 
-    public void sendMessage(int idx, Message send){
-        outMessageList[(idx+1)%size] = send;
+    /**
+     * Sends the message to clockwise neighbor
+     * @param index
+     * @param send
+     */
+    public void sendMessage(int index, Message send){
+        outMessageList[(index+1)%size] = send;
     }
 
 }

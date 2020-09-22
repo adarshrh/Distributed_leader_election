@@ -1,20 +1,33 @@
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+
+/**
+ * Each thread of this class simulates a process.
+ */
 public class Process implements Runnable{
     int pID;
     private int processIndex;
-    CountingSemaphore signalIndicator;
+    CountingSemaphore semaphore;
     private MessageService messageService;
     private Message message;
     private boolean leaderFound;
+    File outputFile;
 
-    public Process(int id, int pID, CountingSemaphore signal, MessageService messageService){
+    public Process(int id, int pID, CountingSemaphore signal, MessageService messageService, String outputFilePath){
         processIndex = id;
         this.pID = pID;
-        signalIndicator = signal;
+        semaphore = signal;
         this.messageService = messageService;
         message = new Message(pID,false);
         leaderFound = false;
+        this.outputFile = new File(outputFilePath);
     }
 
+    /**
+     * Reads incoming message and sends a message to its clockwise neighbor according to LCR algorithm
+     */
     public void run(){
         while(!leaderFound){
             Message incomingMsg = messageService.readIncomingMessage(processIndex);
@@ -23,29 +36,47 @@ public class Process implements Runnable{
                     leaderFound = true;
                     message = incomingMsg;
                     System.out.println("Thread/Process ID: "+ pID +" Leader ID: "+incomingMsg.pID);
+                    try {
+                        writeOutput("Thread/Process ID: "+ pID +" Leader ID: "+incomingMsg.pID);
+                    } catch (IOException e) {
+                        System.out.println("Failed to write output to the file:"+outputFile.getAbsolutePath());
+                        e.printStackTrace();
+                    }
                 }
                 else{
                     int nbr = incomingMsg.pID;
-                    if(nbr > pID)
+                    if(nbr < pID)
                         message = incomingMsg;
                     else if(nbr == pID) {
                         message = new Message(pID,true);
-                        System.out.println("Thread/Process ID: "+ pID +" Leader ID: "+pID);
                     }
                 }
             }
             messageService.sendMessage(processIndex, message);
-            signalIndicator.semaphoreSignal();
+            semaphore._signal();
             message = null;
             if(!leaderFound){
-                synchronized (signalIndicator){
+                synchronized (semaphore){
                     try{
-                        signalIndicator.wait();
+                        semaphore.wait();
                     }catch(InterruptedException e){
                         e.printStackTrace();
                     }
                 }
             }
         }
+    }
+
+    /**
+     * Writes the leader election output to the output file
+     * @param output
+     * @throws IOException
+     */
+    public void writeOutput(String output) throws IOException {
+        BufferedWriter writer = new BufferedWriter(new FileWriter(outputFile,true));
+        writer.write(output);
+        writer.newLine();
+        writer.flush();
+        writer.close();
     }
 }

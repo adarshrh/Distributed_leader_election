@@ -1,3 +1,7 @@
+/**
+ * Message class specifies the message format.
+ * It includes the process ID and the status which indicates whether the leader is found or not
+ */
 public class Message {
     Integer pID;
     boolean isLeader;
