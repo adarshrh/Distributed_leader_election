@@ -1,4 +1,4 @@
-/**
+package project1; /**
  * Group Members:
  * Adarsh Raghupti       axh190002
  * Akash Akki            apa190001
@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Scanner;
 
 /**
- * ElectionCoordinator is the master thread which reads input file and spawns n processes.
+ * project2.ElectionCoordinator is the master thread which reads input file and spawns n processes.
  * The master thread notifies all other threads when a round is completed.
  */
 public class ElectionCoordinator implements Runnable{

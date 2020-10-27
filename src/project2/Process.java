@@ -1,8 +1,10 @@
-/**
+package project2; /**
  * Group Members:
  * Adarsh Raghupti       axh190002
  * Akash Akki            apa190001
  */
+
+
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
@@ -40,9 +42,9 @@ public class Process implements Runnable{
                 if(incomingMsg.isLeader){
                     leaderFound = true;
                     message = incomingMsg;
-                    System.out.println("Thread/Process ID: "+ pID +" Leader ID: "+incomingMsg.pID);
+                    System.out.println("Thread/project2.Process ID: "+ pID +" Leader ID: "+incomingMsg.pID);
                     try {
-                        writeOutput("Thread/Process ID: "+ pID +" Leader ID: "+incomingMsg.pID);
+                        writeOutput("Thread/project2.Process ID: "+ pID +" Leader ID: "+incomingMsg.pID);
                     } catch (IOException e) {
                         System.out.println("Failed to write output to the file:"+outputFile.getAbsolutePath());
                         e.printStackTrace();
