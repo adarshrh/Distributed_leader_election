@@ -6,10 +6,7 @@ package project2; /**
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Scanner;
+import java.util.*;
 
 /**
  * project2.ElectionCoordinator is the master thread which reads input file and spawns n processes.
@@ -23,14 +20,17 @@ public class ElectionCoordinator implements Runnable{
     CountingSemaphore countingSemaphore;
     List<Thread> processList = new ArrayList<>();
     int n;
+    boolean[][] adjMatrix;
     String outputFilePath;
 
-    ElectionCoordinator(int[] pID, String outputFilePath){
+
+    ElectionCoordinator(int[] pID, boolean[][] adjMatrix, String outputFilePath){
         this.pID = pID;
         this.n = pID.length;
         this.messageService = new MessageService(n);
         leaderFound = false;
         countingSemaphore = new CountingSemaphore(n);
+        this.adjMatrix = adjMatrix;
         this.outputFilePath = outputFilePath;
     }
 
@@ -42,6 +42,7 @@ public class ElectionCoordinator implements Runnable{
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+        System.out.println(getDiameter(adjMatrix,n));
     }
 
     /**
@@ -83,6 +84,37 @@ public class ElectionCoordinator implements Runnable{
         }
     }
 
+    public int getDiameter(boolean[][] adjMatrix, int n){
+        int diam = 0;
+        for(int i=0; i<n; i++){
+            diam = Math.max(diam, bfs(i, adjMatrix, n));
+        }
+        return diam;
+    }
+
+    private int bfs(int node, boolean[][] adjMatrix, int n) {
+        int diam = -1;
+        Queue<Integer> q = new LinkedList<>();
+        boolean[] seen = new boolean[n];
+        q.add(node);
+        seen[node] = true;
+        while(!q.isEmpty()){
+            int size = q.size();
+            diam++;
+            for(int i=0; i<size; i++){
+                int curVertex = q.poll();
+                for(int j=0; j<n; j++){
+                    // Adding an unseen node if there is an edge in between
+                    if(adjMatrix[curVertex][j] && !seen[j]){
+                        q.add(j);
+                        seen[j] = true;
+                    }
+                }
+            }
+        }
+        return diam;
+    }
+
     public static void main(String[] args)  {
         Scanner in = null;
         try {
@@ -102,7 +134,17 @@ public class ElectionCoordinator implements Runnable{
         for(int i=0;i<n;i++){
             pID[i] = in.nextInt();
         }
-        Thread electionCoordinator = new Thread(new ElectionCoordinator(pID,args[1]));
+        boolean[][] adjMatrix = new boolean[n][n];
+        for(int i=0; i<n; i++){
+            for(int j=0; j<n; j++){
+                int isEdgePresent = in.nextInt();
+                if(isEdgePresent == 1) {
+                    adjMatrix[i][j] = true;
+                }
+            }
+        }
+
+        Thread electionCoordinator = new Thread(new ElectionCoordinator(pID,adjMatrix,args[1]));
         electionCoordinator.start();
     }
 
