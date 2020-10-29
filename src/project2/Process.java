@@ -1,6 +1,8 @@
-package project2; /**
+package project2;
+
+/**
  * Group Members:
- * Adarsh Raghupti       axh190002
+ * Adarsh Raghupti Hegde  axh190002
  * Akash Akki            apa190001
  */
 
@@ -9,69 +11,131 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.concurrent.DelayQueue;
+import java.util.concurrent.ThreadLocalRandom;
 
-/**
- * Each thread of this class simulates a process.
- */
+
 public class Process implements Runnable{
+
+
+    private static final int DELAY_MIN = 1;
+    private static final int DELAY_MAX = 12;
     int pID;
-    private int processIndex;
-    CountingSemaphore semaphore;
-    private MessageService messageService;
-    private Message message;
+    private int countMsg;
+    private int diam;
+    private int maxProcessId;
+    private int neighborsCount;
+    private List<Process> neighbors;
+    private HashMap<Integer, DelayQueue<Message>> msgQueue;
     private boolean leaderFound;
+    private int round;
     File outputFile;
 
-    public Process(int id, int pID, CountingSemaphore signal, MessageService messageService, String outputFilePath){
-        processIndex = id;
+    public Process(int pID,int diam,String outputFilePath){
         this.pID = pID;
-        semaphore = signal;
-        this.messageService = messageService;
-        message = new Message(pID,false);
-        leaderFound = false;
+        this.countMsg=0;
+        this.diam=diam;
+        this.maxProcessId= this.pID;
+        this.neighbors= new ArrayList<>();
+        this.msgQueue= intializeMsg();
+        this.leaderFound=false;
+
+        this.round = 0;
         this.outputFile = new File(outputFilePath);
     }
 
-    /**
-     * Reads incoming message and sends a message to its clockwise neighbor according to LCR algorithm
-     */
-    public void run(){
-        while(!leaderFound){
-            Message incomingMsg = messageService.readIncomingMessage(processIndex);
-            if(incomingMsg!=null){
-                if(incomingMsg.isLeader){
-                    leaderFound = true;
-                    message = incomingMsg;
-                    System.out.println("Thread/project2.Process ID: "+ pID +" Leader ID: "+incomingMsg.pID);
-                    try {
-                        writeOutput("Thread/project2.Process ID: "+ pID +" Leader ID: "+incomingMsg.pID);
-                    } catch (IOException e) {
-                        System.out.println("Failed to write output to the file:"+outputFile.getAbsolutePath());
-                        e.printStackTrace();
-                    }
+    private HashMap<Integer, DelayQueue<Message>> intializeMsg() {
+        HashMap<Integer, DelayQueue<Message>> msgMap = new HashMap<>();
+        for(int i=0; i<this.diam; i++){
+            msgMap.put(i, new DelayQueue<>());
+        }
+        return msgMap;
+    }
+
+
+    @Override
+    public void run() {
+        boolean isMessageSent = true;
+        while (!this.leaderFound) {
+            if (this.round < this.diam) {
+                if (isMessageSent) {
+                    this.sendMessage();
+                    isMessageSent = false;
                 }
-                else{
-                    int nbr = incomingMsg.pID;
-                    if(nbr < pID)
-                        message = incomingMsg;
-                    else if(nbr == pID) {
-                        message = new Message(pID,true);
-                    }
+                boolean isProcessCompleted = this.receiveIncomingMessage();
+                if (isProcessCompleted)
+                    isMessageSent = true;
+            } else if (this.round == diam) {
+                if (maxProcessId == pID) {
+                    this.leaderFound = true;
+
+                } else {
+                    this.leaderFound = true;
+
                 }
-            }
-            messageService.sendMessage(processIndex, message);
-            semaphore._signal();
-            message = null;
-            if(!leaderFound){
-                synchronized (semaphore){
-                    try{
-                        semaphore.wait();
-                    }catch(InterruptedException e){
-                        e.printStackTrace();
-                    }
-                }
+                System.out.print("My Process id " + this.pID+"  ");
+                System.out.println("Leader Id " + maxProcessId );
+                this.round += 1;
             }
         }
+    }
+
+    private boolean receiveIncomingMessage() {
+
+            if (this.msgQueue.get(this.round).size() == this.neighborsCount) {
+
+
+            List<Message> availableMessages;
+
+            while (this.msgQueue.get(this.round).size() > 0) {
+
+                availableMessages = new ArrayList<>();
+
+                this.msgQueue.get(this.round).drainTo(availableMessages);
+
+                for (Message message : availableMessages) {
+                    maxProcessId = Math.max(maxProcessId, message.getpID());
+
+
+                }
+            }
+
+
+            this.msgQueue.remove(this.round);
+            this.round += 1;
+
+            return true;
+        }
+        return false;
+
+
+    }
+
+    private void sendMessage() {
+        for(Process p : this.neighbors){
+
+            int randDelay = ThreadLocalRandom.current().nextInt(DELAY_MIN, DELAY_MAX+1);
+
+
+            p.msgQueue.get(this.round).add(new Message(maxProcessId, randDelay,this.round));
+
+            this.countMsg += 1;
+
+
+        }
+    }
+    public void addNeighbour(Process process){
+        this.neighbors.add(process);
+        this.neighborsCount++;
+    }
+    public int getMsgsCount() {
+        return countMsg;
+    }
+    public boolean getLeaderFound(){
+        return  leaderFound;
     }
 
     /**
@@ -86,4 +150,8 @@ public class Process implements Runnable{
         writer.flush();
         writer.close();
     }
+
+
 }
+
+

@@ -8,16 +8,12 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.*;
 
-/**
- * project2.ElectionCoordinator is the master thread which reads input file and spawns n processes.
- * The master thread notifies all other threads when a round is completed.
- */
+
 public class ElectionCoordinator implements Runnable{
 
-    boolean leaderFound;
+
     int[] pID;
-    MessageService messageService;
-    CountingSemaphore countingSemaphore;
+
     List<Thread> processList = new ArrayList<>();
     int n;
     boolean[][] adjMatrix;
@@ -27,64 +23,67 @@ public class ElectionCoordinator implements Runnable{
     ElectionCoordinator(int[] pID, boolean[][] adjMatrix, String outputFilePath){
         this.pID = pID;
         this.n = pID.length;
-        this.messageService = new MessageService(n);
-        leaderFound = false;
-        countingSemaphore = new CountingSemaphore(n);
         this.adjMatrix = adjMatrix;
         this.outputFilePath = outputFilePath;
     }
 
     @Override
     public void run() {
-        createProcess();
-        try {
-            execRounds();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+        int diam=getDiameter(adjMatrix,n);
+        Process[]  pArr = new Process[n];
+        createProcess(diam, pArr);
+        addAllNeigbors(pArr);
+        for(int i=0; i<n; i++){
+            Thread thread = new Thread(pArr[i]);
+            thread.start();
         }
-        System.out.println(getDiameter(adjMatrix,n));
+        countNumMessages(pArr);
+
     }
 
-    /**
-     * Create n threads with corresponding process IDs and starts the thread.
-     */
-    public void createProcess(){
-        for(int i=0;i<n;i++){
-            Thread process = new Thread(new Process(i,pID[i],countingSemaphore, messageService,outputFilePath));
-            process.setName(String.valueOf(pID[i]));
-            countingSemaphore._wait();
-            process.start();
-            processList.add(process);
-        }
-    }
-
-    /**
-     * Co-ordinates the execution of rounds by making use of counting semaphore
-     * @throws InterruptedException
-     */
-    public void execRounds() throws InterruptedException {
-        while(!leaderFound){
-            while(!countingSemaphore.isRoundCompleted()){
-                Thread.sleep(10);
-            }
-            for(int i=0;i<messageService.outMessageList.length;i++){
-                messageService.inMessageList[i] = messageService.outMessageList[i];
-            }
-            Arrays.fill(messageService.outMessageList,null);
-            synchronized (countingSemaphore){
-                for(Thread th : processList){
-                    if(th.getState()!= Thread.State.TERMINATED){
-                        countingSemaphore._wait();
-                    }
+    private void countNumMessages(Process[] pArr) {
+        int count =0;
+        int totalMessages = 0;
+        while(true){
+            count = 0;
+            for(Process p :pArr ){
+                if(p.getLeaderFound()==false){
+                    count++;
                 }
-                if(this.countingSemaphore.isRoundCompleted())
-                    this.leaderFound = true;
-                countingSemaphore.notifyAll();
+            }
+            if(count == 0){
+                for(Process p : pArr){
+                    totalMessages+=p.getMsgsCount();
+                }
+                System.out.println("Total Number of Messages : "+totalMessages);
+                System.out.println("==========Leader election completed===========");
+                return;
             }
         }
     }
 
-    public int getDiameter(boolean[][] adjMatrix, int n){
+    private void addAllNeigbors(Process[] pArr) {
+        for(int i=0; i<n; i++){
+            Process p = pArr[i];
+            for(int j=0; j<n; j++){
+                if(adjMatrix[i][j]){
+                    p.addNeighbour(pArr[j]);
+                }
+            }
+        }
+    }
+
+    private void createProcess(int diam, Process[] pArr) {
+        for(int i=0; i<n; i++){
+            pArr[i] = new Process(pID[i], diam,outputFilePath);
+        }
+    }
+
+
+
+
+
+    private  int getDiameter(boolean[][] adjMatrix, int n){
         int diam = 0;
         for(int i=0; i<n; i++){
             diam = Math.max(diam, bfs(i, adjMatrix, n));
@@ -104,7 +103,7 @@ public class ElectionCoordinator implements Runnable{
             for(int i=0; i<size; i++){
                 int curVertex = q.poll();
                 for(int j=0; j<n; j++){
-                    // Adding an unseen node if there is an edge in between
+
                     if(adjMatrix[curVertex][j] && !seen[j]){
                         q.add(j);
                         seen[j] = true;
@@ -117,6 +116,7 @@ public class ElectionCoordinator implements Runnable{
 
     public static void main(String[] args)  {
         Scanner in = null;
+
         try {
         if (args.length > 1) {
                 in =  new Scanner(new File(args[0]));
@@ -143,7 +143,6 @@ public class ElectionCoordinator implements Runnable{
                 }
             }
         }
-
         Thread electionCoordinator = new Thread(new ElectionCoordinator(pID,adjMatrix,args[1]));
         electionCoordinator.start();
     }
