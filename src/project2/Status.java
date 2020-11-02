@@ -8,11 +8,8 @@ public enum Status {
 
   private String type;
 
-  private Status(String _type){
-    this.type = _type;
+  private Status(String type){
+    this.type = type;
   }
 
-  public String getType(){
-    return this.type;
-  }
 }

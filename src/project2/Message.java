@@ -5,22 +5,22 @@ import java.time.temporal.ChronoUnit;
 import java.util.concurrent.Delayed;
 import java.util.concurrent.TimeUnit;
 
+
 public class Message implements Delayed {
   private int maxId;
   private int senderUID;
-  private LocalDateTime activationDateTime;
+  private LocalDateTime localDateTime;
   private Status status;
-  private int round;
 
-  public Message(int senderUID, int maxId, Status status, LocalDateTime activationDateTime) {
+  public Message(int senderUID, int maxId, Status status, LocalDateTime localDateTime) {
     super();
     this.maxId = maxId;
     this.senderUID = senderUID;
     this.status = status;
-    this.activationDateTime = activationDateTime;
+    this.localDateTime = localDateTime;
   }
 
-  public int getSenderUID() {
+  public int getSenderID() {
     return senderUID;
   }
 
@@ -32,13 +32,10 @@ public class Message implements Delayed {
     return status;
   }
 
-  public LocalDateTime getActivationDateTime() {
-    return activationDateTime;
-  }
 
   @Override
-  public int compareTo(Delayed that) {
-    long result = this.getDelay(TimeUnit.NANOSECONDS) - that.getDelay(TimeUnit.NANOSECONDS);
+  public int compareTo(Delayed d) {
+    long result = this.getDelay(TimeUnit.NANOSECONDS) - d.getDelay(TimeUnit.NANOSECONDS);
     if (result < 0) {
       return -1;
     } else if (result > 0) {
@@ -50,12 +47,8 @@ public class Message implements Delayed {
   @Override
   public long getDelay(TimeUnit unit) {
     LocalDateTime now = LocalDateTime.now();
-    long diff = now.until(activationDateTime, ChronoUnit.MILLIS);
+    long diff = now.until(localDateTime, ChronoUnit.MILLIS);
     return unit.convert(diff, TimeUnit.MILLISECONDS);
   }
 
-  @Override
-  public String toString() {
-    return "DelayedEvent [id=" + maxId + ", senderUID= " + senderUID + ", activationDateTime=" + activationDateTime + " ," + getDelay(TimeUnit.MILLISECONDS) + "]";
-  }
 }

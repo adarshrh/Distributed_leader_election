@@ -2,4 +2,4 @@ My ID:9 Leader ID:9
 My ID:4 Leader ID:9
 My ID:5 Leader ID:9
 My ID:8 Leader ID:9
-Total msg sent:30
+Total msg sent:28

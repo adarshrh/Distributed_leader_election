@@ -65,6 +65,10 @@ public class ElectionCoordinator implements Runnable{
 
     }
 
+    /**
+     * Create n processes and initialize
+     * @param threads
+     */
     private void createProcess(Thread[] threads) {
         for (int i = 0; i < n; i++) {
             processes[i] = new Process(pID[i], messageService, adjList.get(pID[i]), queueMap.get(pID[i]),outputFilePath);
@@ -76,6 +80,11 @@ public class ElectionCoordinator implements Runnable{
         }
     }
 
+    /**
+     * Write output to file
+     * @param output
+     * @throws IOException
+     */
     public void writeOutput(String output) throws IOException {
         BufferedWriter writer = new BufferedWriter(new FileWriter(outputFilePath,true));
         writer.write(output);
@@ -86,7 +95,6 @@ public class ElectionCoordinator implements Runnable{
 
     public static void main(String[] args)  {
         Scanner in = null;
-
         try {
         if (args.length > 1) {
                 in =  new Scanner(new File(args[0]));
@@ -104,7 +112,7 @@ public class ElectionCoordinator implements Runnable{
         for(int i=0;i<n;i++){
             pID[i] = in.nextInt();
         }
-
+        //Create adjacency list
         HashMap<Integer, List<Integer>> adjList = new HashMap();
         for(int i=0;i<n;i++){
             for(int j=0;j<n;j++){

@@ -35,7 +35,6 @@ class Process implements Runnable {
         this.NACK_COUNT = 0;
         this.ACK_COUNT = 0;
         this.messageService = messageService;
-        //this.neighbors = neighbors;
         this.neighborCount = neighbors.size();
         this.queue = queue;
         this.parentId = uid;
@@ -44,12 +43,11 @@ class Process implements Runnable {
 
     @Override
     public void run() {
-        List<Message> items = new ArrayList<>();
         try {
             messageCount += messageService.sendEXPLORE(uid, maxUID, Status.EXPLORE, null);
             while (true) {
               Message message = queue.take();
-              Integer senderID = message.getSenderUID();
+              Integer senderID = message.getSenderID();
               Integer maxAtSender = message.getMaxId();
               Status messageStatus = message.getStatus();
               if(messageStatus.equals(Status.EXPLORE)){
@@ -89,18 +87,16 @@ class Process implements Runnable {
                       break;
                   }
               } else if (messageStatus.equals(Status.LEADER)) {
-                  //System.out.printf("%s is not a leader. Max id: %s\n", uid,maxUID);
-                  // pass leader broadcast message along all tree edges
+                  // Notify all process of leader being elected
                   messageCount+=messageService.sendEXPLORE(uid, maxUID, Status.LEADER, senderID);
                   System.out.println("My ID:"+uid+" Leader ID:"+maxAtSender);
                   writeOutput("My ID:"+uid+" Leader ID:"+maxAtSender);
-                  // System.out.printf("UID %s Message count %s\n", uid, messageCount);
                   break;
               }
             }
 
-        } catch (Exception ex) {
-            ex.printStackTrace();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
