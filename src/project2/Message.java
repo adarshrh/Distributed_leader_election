@@ -1,65 +1,61 @@
 package project2;
 
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.concurrent.Delayed;
 import java.util.concurrent.TimeUnit;
 
+public class Message implements Delayed {
+  private int maxId;
+  private int senderUID;
+  private LocalDateTime activationDateTime;
+  private Status status;
+  private int round;
 
-public class Message  implements Delayed {
+  public Message(int senderUID, int maxId, Status status, LocalDateTime activationDateTime) {
+    super();
+    this.maxId = maxId;
+    this.senderUID = senderUID;
+    this.status = status;
+    this.activationDateTime = activationDateTime;
+  }
 
-    private int pID;
-    private long timeTaken;
-    private long delayedTime;
-    private int round;
-    private static final int f = 100;
+  public int getSenderUID() {
+    return senderUID;
+  }
 
-    public Message(int pID,long delayedTime,int round) {
-        this.pID = pID;
-        this.timeTaken =System.currentTimeMillis()
-            + delayedTime*f;
-        this.delayedTime = delayedTime;
+  public int getMaxId() {
+    return maxId;
+  }
 
-        this.round= round;
+  public Status getStatus() {
+    return status;
+  }
+
+  public LocalDateTime getActivationDateTime() {
+    return activationDateTime;
+  }
+
+  @Override
+  public int compareTo(Delayed that) {
+    long result = this.getDelay(TimeUnit.NANOSECONDS) - that.getDelay(TimeUnit.NANOSECONDS);
+    if (result < 0) {
+      return -1;
+    } else if (result > 0) {
+      return 1;
     }
+    return 0;
+  }
 
+  @Override
+  public long getDelay(TimeUnit unit) {
+    LocalDateTime now = LocalDateTime.now();
+    long diff = now.until(activationDateTime, ChronoUnit.MILLIS);
+    return unit.convert(diff, TimeUnit.MILLISECONDS);
+  }
 
-    @Override
-    public long getDelay(TimeUnit unit) {
-        long d = timeTaken - System.currentTimeMillis();
-        return unit.convert(d, TimeUnit.MILLISECONDS);
-    }
-
-    @Override
-    public int compareTo(Delayed o) {
-        if (this.timeTaken > ((Message)o).timeTaken) {
-            return 1;
-        }
-        else if (this.timeTaken < ((Message)o).timeTaken) {
-            return -1;
-        }
-        return 0;
-    }
-
-    public int getpID() {
-        return pID;
-    }
-
-    public void setpID(int pID) {
-        this.pID = pID;
-    }
-
-    public long getDelayedTime() {
-        return delayedTime;
-    }
-
-    public void setDelayedTime(long delayedTime) {
-        this.delayedTime = delayedTime;
-    }
-
-    public int getRound() {
-        return round;
-    }
-
-    public void setRound(int round) {
-        this.round = round;
-    }
+  @Override
+  public String toString() {
+    return "DelayedEvent [id=" + maxId + ", senderUID= " + senderUID + ", activationDateTime=" + activationDateTime + " ," + getDelay(TimeUnit.MILLISECONDS) + "]";
+  }
 }

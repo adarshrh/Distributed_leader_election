@@ -1,157 +1,118 @@
 package project2;
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.*;
+import java.util.concurrent.DelayQueue;
+
 /**
  * Group Members:
  * Adarsh Raghupti Hegde  axh190002
  * Akash Akki            apa190001
  */
 
+class Process implements Runnable {
+    Integer uid;
+    int maxUID;
+    DelayQueue<Message> queue;
+    Status status;
+    int messageCount;
 
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.concurrent.DelayQueue;
-import java.util.concurrent.ThreadLocalRandom;
+    int NACK_COUNT;
+    int ACK_COUNT;
+    int neighborCount;
+    Integer parentId;
 
+    Set<Integer> NACK_SET = new HashSet<>();
+    Set<Integer> ACK_SET = new HashSet<>();
+    MessageService messageService;
+    String outputPath;
 
-public class Process implements Runnable{
-
-
-    private static final int DELAY_MIN = 1;
-    private static final int DELAY_MAX = 12;
-    int pID;
-    private int countMsg;
-    private int diam;
-    private int maxProcessId;
-    private int neighborsCount;
-    private List<Process> neighbors;
-    private HashMap<Integer, DelayQueue<Message>> msgQueue;
-    private boolean leaderFound;
-    private int round;
-    File outputFile;
-
-    public Process(int pID,int diam,String outputFilePath){
-        this.pID = pID;
-        this.countMsg=0;
-        this.diam=diam;
-        this.maxProcessId= this.pID;
-        this.neighbors= new ArrayList<>();
-        this.msgQueue= intializeMsg();
-        this.leaderFound=false;
-
-        this.round = 0;
-        this.outputFile = new File(outputFilePath);
+    public Process(int id, MessageService messageService, List<Integer> neighbors, DelayQueue<Message> queue, String outputPath) {
+        this.uid = id;
+        this.maxUID = id;
+        this.NACK_COUNT = 0;
+        this.ACK_COUNT = 0;
+        this.messageService = messageService;
+        //this.neighbors = neighbors;
+        this.neighborCount = neighbors.size();
+        this.queue = queue;
+        this.parentId = uid;
+        this.outputPath = outputPath;
     }
-
-    private HashMap<Integer, DelayQueue<Message>> intializeMsg() {
-        HashMap<Integer, DelayQueue<Message>> msgMap = new HashMap<>();
-        for(int i=0; i<this.diam; i++){
-            msgMap.put(i, new DelayQueue<>());
-        }
-        return msgMap;
-    }
-
 
     @Override
     public void run() {
-        boolean isMessageSent = true;
-        while (!this.leaderFound) {
-            if (this.round < this.diam) {
-                if (isMessageSent) {
-                    this.sendMessage();
-                    isMessageSent = false;
-                }
-                boolean isProcessCompleted = this.receiveIncomingMessage();
-                if (isProcessCompleted)
-                    isMessageSent = true;
-            } else if (this.round == diam) {
-                if (maxProcessId == pID) {
-                    this.leaderFound = true;
+        List<Message> items = new ArrayList<>();
+        try {
+            messageCount += messageService.sendEXPLORE(uid, maxUID, Status.EXPLORE, null);
+            while (true) {
+              Message message = queue.take();
+              Integer senderID = message.getSenderUID();
+              Integer maxAtSender = message.getMaxId();
+              Status messageStatus = message.getStatus();
+              if(messageStatus.equals(Status.EXPLORE)){
+                  if (maxAtSender > maxUID) {
+                      if (maxUID != uid ) {
+                          System.out.println("Found new maxID: Send NACK to old parent");
+                          System.out.println("Sending NACK from:"+uid+" to:"+parentId);
+                          messageCount+=messageService.sendNACK(uid, maxAtSender, Status.NACK,  parentId);
+                      }
+                      this.parentId = senderID;
+                      this.maxUID = maxAtSender;
+                      // send explore to neighbors except to parent node
+                      System.out.println("Found new maxID: Send EXPLORE to all neighbors except parent");
+                      messageCount+=messageService.sendEXPLORE(uid, maxUID, Status.EXPLORE, parentId);
 
-                } else {
-                    this.leaderFound = true;
+                  } else {
+                     messageCount+= messageService.sendNACK(uid, maxUID, Status.NACK, senderID);
+                  }
+              }
+              else if (messageStatus.equals(Status.ACK) || messageStatus.equals(Status.NACK)) {
+                  if (messageStatus.equals(Status.ACK)) {
+                      ACK_SET.add(senderID);
+                  }
+                  else NACK_SET.add(senderID);
+                  if ((NACK_SET.size() == neighborCount || (NACK_SET.size() + ACK_SET.size() == neighborCount)) && parentId != uid) {
+                      // update parent that its complete
+                      messageCount+=messageService.sendACK(uid, maxUID, Status.ACK,  parentId);
+                  } else if (ACK_SET.size() == neighborCount) {
 
-                }
-                System.out.print("My Process id " + this.pID+"  ");
-                System.out.println("Leader Id " + maxProcessId );
-                this.round += 1;
+                      // let master know that leader got elected
+                      status=Status.LEADER;
+
+                      // update all neighbors about leader election
+                      System.out.println("My ID:"+uid+" Leader ID:"+maxUID);
+                      writeOutput("My ID:"+uid+" Leader ID:"+maxAtSender);
+                      messageCount+=messageService.sendEXPLORE(uid, maxUID, Status.LEADER, null);
+                      break;
+                  }
+              } else if (messageStatus.equals(Status.LEADER)) {
+                  //System.out.printf("%s is not a leader. Max id: %s\n", uid,maxUID);
+                  // pass leader broadcast message along all tree edges
+                  messageCount+=messageService.sendEXPLORE(uid, maxUID, Status.LEADER, senderID);
+                  System.out.println("My ID:"+uid+" Leader ID:"+maxAtSender);
+                  writeOutput("My ID:"+uid+" Leader ID:"+maxAtSender);
+                  // System.out.printf("UID %s Message count %s\n", uid, messageCount);
+                  break;
+              }
             }
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
         }
     }
 
-    private boolean receiveIncomingMessage() {
-
-            if (this.msgQueue.get(this.round).size() == this.neighborsCount) {
-
-
-            List<Message> availableMessages;
-
-            while (this.msgQueue.get(this.round).size() > 0) {
-
-                availableMessages = new ArrayList<>();
-
-                this.msgQueue.get(this.round).drainTo(availableMessages);
-
-                for (Message message : availableMessages) {
-                    maxProcessId = Math.max(maxProcessId, message.getpID());
-
-
-                }
-            }
-
-
-            this.msgQueue.remove(this.round);
-            this.round += 1;
-
-            return true;
-        }
-        return false;
-
-
+    public int getMessageCount() {
+        return messageCount;
     }
 
-    private void sendMessage() {
-        for(Process p : this.neighbors){
-
-            int randDelay = ThreadLocalRandom.current().nextInt(DELAY_MIN, DELAY_MAX+1);
-
-
-            p.msgQueue.get(this.round).add(new Message(maxProcessId, randDelay,this.round));
-
-            this.countMsg += 1;
-
-
-        }
-    }
-    public void addNeighbour(Process process){
-        this.neighbors.add(process);
-        this.neighborsCount++;
-    }
-    public int getMsgsCount() {
-        return countMsg;
-    }
-    public boolean getLeaderFound(){
-        return  leaderFound;
-    }
-
-    /**
-     * Writes the leader election output to the output file
-     * @param output
-     * @throws IOException
-     */
     public void writeOutput(String output) throws IOException {
-        BufferedWriter writer = new BufferedWriter(new FileWriter(outputFile,true));
+        BufferedWriter writer = new BufferedWriter(new FileWriter(outputPath,true));
         writer.write(output);
         writer.newLine();
         writer.flush();
         writer.close();
     }
-
-
 }
-
-

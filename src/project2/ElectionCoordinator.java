@@ -4,114 +4,84 @@ package project2; /**
  * Akash Akki            apa190001
  */
 
-import java.io.File;
-import java.io.FileNotFoundException;
+import java.io.*;
 import java.util.*;
+import java.util.concurrent.DelayQueue;
 
 
 public class ElectionCoordinator implements Runnable{
 
 
     int[] pID;
-
-    List<Thread> processList = new ArrayList<>();
+    Map<Integer, List<Integer>> adjList = new HashMap();
+    HashMap<Integer, DelayQueue<Message>> queueMap = new HashMap<>();
+    MessageService messageService;
     int n;
-    boolean[][] adjMatrix;
     String outputFilePath;
+    Process[] processes;
 
 
-    ElectionCoordinator(int[] pID, boolean[][] adjMatrix, String outputFilePath){
+    ElectionCoordinator(int[] pID, Map<Integer, List<Integer>> adjList, String outputFilePath){
         this.pID = pID;
         this.n = pID.length;
-        this.adjMatrix = adjMatrix;
+        this.adjList = adjList;
         this.outputFilePath = outputFilePath;
+        for (int i = 0; i < n; i++) {
+            queueMap.put(pID[i], new DelayQueue<>());
+        }
+        messageService = new MessageService(adjList,queueMap,n);
+        processes = new Process[n];
     }
 
     @Override
     public void run() {
-        int diam=getDiameter(adjMatrix,n);
-        Process[]  pArr = new Process[n];
-        createProcess(diam, pArr);
-        addAllNeigbors(pArr);
-        for(int i=0; i<n; i++){
-            Thread thread = new Thread(pArr[i]);
-            thread.start();
-        }
-        countNumMessages(pArr);
-
-    }
-
-    private void countNumMessages(Process[] pArr) {
-        int count =0;
-        int totalMessages = 0;
-        while(true){
-            count = 0;
-            for(Process p :pArr ){
-                if(p.getLeaderFound()==false){
-                    count++;
-                }
-            }
-            if(count == 0){
-                for(Process p : pArr){
-                    totalMessages+=p.getMsgsCount();
-                }
-                System.out.println("Total Number of Messages : "+totalMessages);
-                System.out.println("==========Leader election completed===========");
-                return;
-            }
-        }
-    }
-
-    private void addAllNeigbors(Process[] pArr) {
-        for(int i=0; i<n; i++){
-            Process p = pArr[i];
-            for(int j=0; j<n; j++){
-                if(adjMatrix[i][j]){
-                    p.addNeighbour(pArr[j]);
-                }
-            }
-        }
-    }
-
-    private void createProcess(int diam, Process[] pArr) {
-        for(int i=0; i<n; i++){
-            pArr[i] = new Process(pID[i], diam,outputFilePath);
-        }
-    }
-
-
-
-
-
-    private  int getDiameter(boolean[][] adjMatrix, int n){
-        int diam = 0;
-        for(int i=0; i<n; i++){
-            diam = Math.max(diam, bfs(i, adjMatrix, n));
-        }
-        return diam;
-    }
-
-    private int bfs(int node, boolean[][] adjMatrix, int n) {
-        int diam = -1;
-        Queue<Integer> q = new LinkedList<>();
-        boolean[] seen = new boolean[n];
-        q.add(node);
-        seen[node] = true;
-        while(!q.isEmpty()){
-            int size = q.size();
-            diam++;
-            for(int i=0; i<size; i++){
-                int curVertex = q.poll();
-                for(int j=0; j<n; j++){
-
-                    if(adjMatrix[curVertex][j] && !seen[j]){
-                        q.add(j);
-                        seen[j] = true;
+        Thread[] threads = new Thread[n];
+        createProcess(threads);
+        try{
+            int terminatedCount = 0;
+            while (terminatedCount < n) {
+                terminatedCount = 0;
+                for (Thread thread: threads){
+                    if(!thread.isAlive()){
+                        terminatedCount++;
                     }
                 }
+                Thread.sleep(10);
             }
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
-        return diam;
+        int msgCount = 0;
+        for(Process p : processes){
+            msgCount += p.getMessageCount();
+        }
+        System.out.println("Total msg sent:"+msgCount);
+        try {
+            writeOutput("Total msg sent:"+msgCount);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+
+    }
+
+    private void createProcess(Thread[] threads) {
+        for (int i = 0; i < n; i++) {
+            processes[i] = new Process(pID[i], messageService, adjList.get(pID[i]), queueMap.get(pID[i]),outputFilePath);
+            threads[i] = new Thread(processes[i]);
+        }
+
+        for (Thread th: threads) {
+            th.start();
+        }
+    }
+
+    public void writeOutput(String output) throws IOException {
+        BufferedWriter writer = new BufferedWriter(new FileWriter(outputFilePath,true));
+        writer.write(output);
+        writer.newLine();
+        writer.flush();
+        writer.close();
     }
 
     public static void main(String[] args)  {
@@ -134,16 +104,16 @@ public class ElectionCoordinator implements Runnable{
         for(int i=0;i<n;i++){
             pID[i] = in.nextInt();
         }
-        boolean[][] adjMatrix = new boolean[n][n];
-        for(int i=0; i<n; i++){
-            for(int j=0; j<n; j++){
-                int isEdgePresent = in.nextInt();
-                if(isEdgePresent == 1) {
-                    adjMatrix[i][j] = true;
+
+        HashMap<Integer, List<Integer>> adjList = new HashMap();
+        for(int i=0;i<n;i++){
+            for(int j=0;j<n;j++){
+                if (in.nextInt() == 1) {
+                    adjList.computeIfAbsent(pID[i], k -> new ArrayList<>()).add(pID[j]);
                 }
             }
         }
-        Thread electionCoordinator = new Thread(new ElectionCoordinator(pID,adjMatrix,args[1]));
+        Thread electionCoordinator = new Thread(new ElectionCoordinator(pID,adjList,args[1]));
         electionCoordinator.start();
     }
 
