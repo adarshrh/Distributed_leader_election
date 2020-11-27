@@ -1,0 +1,19 @@
+My id:8 parentId:2 Distance to root:14
+My id:2 parentId:1 Distance to root:12
+My id:1 parentId:0 Distance to root:4
+My id:4 parentId:5 Distance to root:21
+My id:3 parentId:2 Distance to root:19
+My id:5 parentId:6 Distance to root:11
+My id:6 parentId:7 Distance to root:9
+My id:7 parentId:0 Distance to root:8
+My id:0 parentId:null Distance to root:0
+Total msg sent:80
+
+My id:7 parentId:4 Distance to root:12
+My id:5 parentId:4 Distance to root:10
+My id:1 parentId:3 Distance to root:9
+My id:2 parentId:4 Distance to root:9
+My id:3 parentId:6 Distance to root:5
+My id:6 parentId:null Distance to root:0
+My id:4 parentId:6 Distance to root:8
+Total msg sent:51
