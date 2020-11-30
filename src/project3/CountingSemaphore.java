@@ -1,8 +1,10 @@
-package project3; /**
+/**
  * Group Members:
  * Adarsh Raghupti       axh190002
  * Akash Akki            apa190001
  */
+
+package project3;
 import java.util.concurrent.Semaphore;
 
 /**
