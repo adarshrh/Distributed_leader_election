@@ -87,7 +87,7 @@ public class ElectionCoordinator implements Runnable{
      */
     private void createProcess(Thread[] threads) {
         for (int i = 0; i < n; i++) {
-            if(pID[i] == this.rootPid)
+            if(i == this.rootPid)
                 processes[i] = new Process(pID[i], messageService, adjList.get(pID[i]), queueMap.get(pID[i]),outputFilePath,true, countingSemaphore);
             else
                 processes[i] = new Process(pID[i], messageService, adjList.get(pID[i]), queueMap.get(pID[i]),outputFilePath,false, countingSemaphore);
